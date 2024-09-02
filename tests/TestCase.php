@@ -2,7 +2,6 @@
 
 namespace Spectator\Tests;
 
-use Illuminate\Support\Facades\Config;
 use Orchestra\Testbench\TestCase as Orchestra;
 
 abstract class TestCase extends Orchestra
@@ -17,13 +16,15 @@ abstract class TestCase extends Orchestra
 
     const NULLABLE_NULL = 4;
 
-    protected function getEnvironmentSetUp($app)
-    {
-        Config::set('spectator.suppress_errors', true);
-    }
-
     protected function getPackageProviders($app)
     {
         return ['Spectator\SpectatorServiceProvider'];
+    }
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->withoutExceptionHandling();
     }
 }

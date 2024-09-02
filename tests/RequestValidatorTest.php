@@ -4,6 +4,7 @@ namespace Spectator\Tests;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Routing\Middleware\SubstituteBindings;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Str;
@@ -84,7 +85,7 @@ class RequestValidatorTest extends TestCase
     {
         Config::set('spectator.path_prefix', 'v1');
 
-        Spectator::using('Global.v1.yaml');
+        Spectator::using('Global.v1.yml');
 
         $uuid = (string) Str::uuid();
 
@@ -105,7 +106,7 @@ class RequestValidatorTest extends TestCase
     {
         Config::set('spectator.path_prefix', 'v1');
 
-        Spectator::using('Global.v1.yaml');
+        Spectator::using('Global.v1.yml');
 
         $uuid = (string) Str::uuid();
 
@@ -128,13 +129,13 @@ class RequestValidatorTest extends TestCase
     {
         Spectator::using('Test.v1.json');
 
-        Route::get('/users/{user}', function () {
+        Route::get('/users/{user}', function (TestUser $user) {
             return [
                 'id' => 1,
                 'name' => 'Jim',
                 'email' => 'test@test.test',
             ];
-        })->middleware(Middleware::class);
+        })->middleware([SubstituteBindings::class, Middleware::class]);
 
         $this->getJson('/users/1')
             ->assertValidRequest();
@@ -144,14 +145,14 @@ class RequestValidatorTest extends TestCase
     {
         Spectator::using('Test.v1.json');
 
-        Route::bind('postUuid', TestUser::class);
+        Route::bind('postUuid', fn () => new TestUser);
 
         Route::get('/posts/{postUuid}', function () {
             return [
                 'id' => 1,
                 'title' => 'My Post',
             ];
-        })->middleware(Middleware::class);
+        })->middleware([SubstituteBindings::class, Middleware::class]);
 
         $this->getJson('/posts/'.Str::uuid()->toString())
             ->assertValidRequest();
@@ -161,14 +162,14 @@ class RequestValidatorTest extends TestCase
     {
         Spectator::using('Test.v1.json');
 
-        Route::bind('postUuid', TestUser::class);
+        Route::bind('postUuid', fn () => new TestUser);
 
         Route::get('/posts/{postUuid}', function () {
             return [
                 'id' => 1,
                 'title' => 'My Post',
             ];
-        })->middleware(Middleware::class);
+        })->middleware([SubstituteBindings::class, Middleware::class]);
 
         $this->getJson('/posts/invalid')
             ->assertInvalidRequest();
@@ -178,14 +179,14 @@ class RequestValidatorTest extends TestCase
     {
         Spectator::using('Test.v1.json');
 
-        Route::bind('postUuid', TestUser::class);
+        Route::bind('postUuid', fn () => new TestUser);
 
         Route::get('/posts/{postUuid}/comments/{comment}', function () {
             return [
                 'id' => 1,
                 'message' => 'My Comment',
             ];
-        })->middleware(Middleware::class);
+        })->middleware([SubstituteBindings::class, Middleware::class]);
 
         $this->getJson('/posts/'.Str::uuid()->toString().'/comments/1')
             ->assertValidRequest();
@@ -194,14 +195,11 @@ class RequestValidatorTest extends TestCase
     /**
      * @dataProvider nullableProvider
      */
-    public function test_handle_nullables(
-        $version,
-        $state,
-        $is_valid
-    ): void {
+    public function test_handle_nullables($version, $state, $isValid): void
+    {
         Spectator::using("Nullable.$version.json");
 
-        Route::post('/users')->middleware(Middleware::class);
+        Route::post('/users', fn () => 'ok')->middleware(Middleware::class);
 
         $payload = [
             'name' => 'Adam Campbell',
@@ -224,7 +222,7 @@ class RequestValidatorTest extends TestCase
             $payload['nickname'] = null;
         }
 
-        if ($is_valid) {
+        if ($isValid) {
             $this->postJson('/users', $payload)
                 ->assertValidRequest();
         } else {
@@ -233,7 +231,7 @@ class RequestValidatorTest extends TestCase
         }
     }
 
-    public function nullableProvider(): array
+    public static function nullableProvider(): array
     {
         $validResponse = true;
 
@@ -315,7 +313,7 @@ class RequestValidatorTest extends TestCase
         }
     }
 
-    public function oneOfSchemaProvider(): array
+    public static function oneOfSchemaProvider(): array
     {
         $valid = true;
         $invalid = false;
@@ -375,7 +373,7 @@ class RequestValidatorTest extends TestCase
         }
     }
 
-    public function anyOfSchemaProvider(): array
+    public static function anyOfSchemaProvider(): array
     {
         $valid = true;
         $invalid = false;
@@ -433,7 +431,7 @@ class RequestValidatorTest extends TestCase
         }
     }
 
-    public function allOfSchemaProvider(): array
+    public static function allOfSchemaProvider(): array
     {
         $valid = true;
         $invalid = false;
@@ -521,12 +519,45 @@ class RequestValidatorTest extends TestCase
             ->assertValid();
     }
 
+    public function test_handles_array_query_parameters(): void
+    {
+        Spectator::using('Arrays.v1.yml');
+
+        // When testing query parameters, they are not found nor checked by RequestValidator->validateParameters().
+        Route::get('/parameter-as-array', function () {
+            return response()->noContent();
+        })->middleware(Middleware::class);
+
+        $this->get('/parameter-as-array?arrayParam=foo')
+            ->assertValidationMessage('The data (string) must match the type: array')
+            ->assertInvalidRequest();
+
+        $this->get('/parameter-as-array?arrayParam[]=foo&arrayParam[]=bar')
+            ->assertValidRequest();
+    }
+
+    public function test_handles_array_of_object_query_parameters(): void
+    {
+        Spectator::using('Arrays.v1.yml');
+
+        Route::get('/parameter-as-array-of-objects', function () {
+            return response()->noContent();
+        })->middleware(Middleware::class);
+
+        $this->get('/parameter-as-array-of-objects?arrayParam[0][id]=1&arrayParam[0][name]=foo&arrayParam[1][id]=2')
+            ->assertValidationMessage('The required properties (name) are missing')
+            ->assertInvalidRequest();
+
+        $this->get('/parameter-as-array-of-objects?arrayParam[0][id]=1&arrayParam[0][name]=foo&arrayParam[1][id]=2&arrayParam[1][name]=bar')
+            ->assertValidRequest();
+    }
+
     public function test_handles_query_parameters_int(): void
     {
         Spectator::using('Test.v1.json');
 
         // When testing query parameters, they are not found nor checked by RequestValidator->validateParameters().
-        Route::get('/users-by-id/{user}', function (int $user) {
+        Route::get('/users-by-id/{user}', function (string $user) {
             return [];
         })->middleware(Middleware::class);
 
@@ -567,7 +598,11 @@ class RequestValidatorTest extends TestCase
 
         $this->post(
             '/users',
-            ['name' => 'Adam Campbell', 'email' => 'test@test.com', 'picture' => UploadedFile::fake()->image('test.jpg')],
+            [
+                'name' => 'Adam Campbell',
+                'email' => 'test@test.com',
+                'picture' => UploadedFile::fake()->image('test.jpg'),
+            ],
             ['Content-Type' => 'multipart/form-data']
         )
             ->assertValidRequest();
@@ -677,7 +712,7 @@ class RequestValidatorTest extends TestCase
             ->assertValidResponse();
     }
 
-    public function nullableObjectProvider(): array
+    public static function nullableObjectProvider(): array
     {
         return [
             [['name' => 'dog', 'friend' => null], true],
@@ -725,7 +760,7 @@ class RequestValidatorTest extends TestCase
     ): void {
         Spectator::using('RequiredReadOnly.v1.yml');
 
-        Route::post('/users')->middleware(Middleware::class);
+        Route::post('/users', fn () => 'ok')->middleware(Middleware::class);
 
         if ($is_valid) {
             $this->postJson('/users', $payload)
@@ -736,7 +771,7 @@ class RequestValidatorTest extends TestCase
         }
     }
 
-    public function requiredReadOnlySchemaProvider(): array
+    public static function requiredReadOnlySchemaProvider(): array
     {
         $valid = true;
         $invalid = false;
@@ -786,8 +821,101 @@ class RequestValidatorTest extends TestCase
             ],
         ];
     }
+
+    /**
+     * @dataProvider enumProvider
+     */
+    public function test_enum_in_path(string $type, bool $isValid): void
+    {
+        Spectator::using('Enum.yml');
+
+        Route::get('/enum-in-path/{type}', function (TestEnum $type) {
+            return response()->noContent();
+        })->middleware([SubstituteBindings::class, Middleware::class]);
+
+        if ($isValid) {
+            $this->getJson("/enum-in-path/{$type}")
+                ->assertValidRequest();
+        } else {
+            $this->getJson("/enum-in-path/{$type}")
+                ->assertInvalidRequest();
+        }
+    }
+
+    /**
+     * @dataProvider enumProvider
+     */
+    public function test_enum_in_path_via_reference(string $type, bool $isValid): void
+    {
+        Spectator::using('Enum.yml');
+
+        Route::get('/enum-in-path-via-reference/{type}', function (TestEnum $type) {
+            return response()->noContent();
+        })->middleware([SubstituteBindings::class, Middleware::class]);
+
+        if ($isValid) {
+            $this->getJson("/enum-in-path-via-reference/{$type}")
+                ->assertValidRequest();
+        } else {
+            $this->getJson("/enum-in-path-via-reference/{$type}")
+                ->assertInvalidRequest();
+        }
+    }
+
+    public static function enumProvider(): array
+    {
+        return [
+            'valid enum' => [
+                'name',
+                true,
+            ],
+            'invalid enum' => [
+                'invalid',
+                false,
+            ],
+        ];
+    }
+
+    public function test_validates_upload_file(): void
+    {
+        Spectator::using('Upload.yml');
+
+        Route::post('/upload', function () {
+            return response()->noContent();
+        })->middleware(Middleware::class);
+
+        $this->post('/upload', ['file' => UploadedFile::fake()->createWithContent('test.xlsx', 'Content')], ['Content-Type' => 'multipart/form-data'])
+            ->assertValidRequest();
+    }
+
+    public function test_parameter_decoupling(): void
+    {
+        Spectator::using('Test.v1.json');
+
+        Route::get('/users/{id}', function (TestUser $id) {
+            return [
+                'id' => 1,
+                'name' => 'Jim',
+                'email' => 'test@test.test',
+            ];
+        })->middleware([SubstituteBindings::class, Middleware::class]);
+
+        $this->getJson('/users/1')
+            ->assertValidRequest();
+    }
 }
 
 class TestUser extends Model
 {
+    public function resolveRouteBinding($value, $field = null)
+    {
+        return new TestUser();
+    }
+}
+
+enum TestEnum: string
+{
+    case name = 'name';
+    case email = 'email';
+    case invalid = 'invalid';
 }

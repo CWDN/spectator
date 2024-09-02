@@ -16,16 +16,18 @@
     }
   ],
   "require": {
-    "php": "^7.4|^8.0",
+    "php": "^8.1",
     "ext-json": "*",
-    "cebe/php-openapi": "^1.5",
-    "laravel/framework": "^8.40.0|^9.0.0|^10.0.0",
-    "opis/json-schema": "^2.0"
+    "devizzent/cebe-php-openapi": "^1.0",
+    "laravel/framework": "^10.0 | ^11.0",
+    "opis/json-schema": "^2.3"
   },
   "require-dev": {
-    "nunomaduro/collision": "^5.1|^6.0",
-    "orchestra/testbench": "^6.0|^7.0|^8.0",
-    "phpunit/phpunit": "^9.5"
+    "larastan/larastan": "^2.8",
+    "laravel/pint": "^1.13",
+    "nunomaduro/collision": "^7.0|^8.0",
+    "orchestra/testbench": "^8.0|^9.0",
+    "phpunit/phpunit": "^10.0|^11.0"
   },
   "autoload": {
     "psr-4": {
@@ -38,9 +40,19 @@
     }
   },
   "scripts": {
-    "test": "vendor/bin/phpunit"
+    "cs": "vendor/bin/pint",
+    "test": " COLLISION_PRINTER=1 vendor/bin/phpunit --no-output",
+    "analyse": "vendor/bin/phpstan analyse",
+    "all": [
+      "@cs",
+      "@test",
+      "@analyse"
+    ]
   },
   "extra": {
+    "branch-alias": {
+      "dev-master": "2.x-dev"
+    },
     "laravel": {
       "providers": [
         "Spectator\\SpectatorServiceProvider"
@@ -49,5 +61,7 @@
   },
   "config": {
     "sort-packages": true
-  }
+  },
+  "minimum-stability": "dev",
+  "prefer-stable": true
 }

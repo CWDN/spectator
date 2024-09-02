@@ -71,5 +71,57 @@ paths:
           name: orgUuid
           in: path
           required: true
+  /array-of-strings:
+    get:
+      summary: Get arrays of string
+      tags: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: string
+  /parameter-as-array:
+    parameters:
+      - name: arrayParam
+        in: query
+        schema:
+          type: array
+          items:
+            type: string
+    get:
+      summary: Get arrays of string
+      tags: [ ]
+      responses:
+        '204':
+          description: No Content
+  /parameter-as-array-of-objects:
+    parameters:
+      - name: arrayParam
+        in: query
+        schema:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: integer
+              name:
+                type: string
+            required:
+              - id
+              - name
+    get:
+      summary: Get arrays of objects
+      tags: [ ]
+      responses:
+        '204':
+          description: No Content
 components:
   schemas: {}
