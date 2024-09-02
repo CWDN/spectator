@@ -909,7 +909,7 @@ class TestUser extends Model
 {
     public function resolveRouteBinding($value, $field = null)
     {
-        return new TestUser();
+        return new TestUser;
     }
 }
 

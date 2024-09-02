@@ -32,7 +32,7 @@ abstract class AbstractValidator
         $data = $this->migrateNullableTo31Style($data);
 
         if ($this->shouldHaveProperties($data)) {
-            $data->properties ??= new stdClass();
+            $data->properties ??= new stdClass;
         }
 
         match (true) {

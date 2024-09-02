@@ -57,10 +57,10 @@ class ResponseValidator extends AbstractValidator
         // This is a bit hacky, but will allow resolving other JSON responses like application/problem+json
         // when returning standard JSON responses from frameworks (See hotmeteor/spectator#114)
 
-//        $specTypes = array_combine(array_keys($response->content), array_map(
-//            fn ($type) => $contentType === 'application/json' && Str::endsWith($type, '+json') ? 'application/json' : $type,
-//            array_keys($response->content)
-//        ));
+        //        $specTypes = array_combine(array_keys($response->content), array_map(
+        //            fn ($type) => $contentType === 'application/json' && Str::endsWith($type, '+json') ? 'application/json' : $type,
+        //            array_keys($response->content)
+        //        ));
 
         // Does the response match any of the specified media types?
         $matchingType = $this->findMatchingType($contentType, $specTypes);
@@ -74,10 +74,10 @@ class ResponseValidator extends AbstractValidator
         }
 
         $schema = $response->content[$matchingType]->schema;
-//        // Lookup the content type specified in the spec that match the application/json content type
-//        $contentType = array_flip($specTypes)[$contentType];
-//
-//        $schema = $response->content[$contentType]->schema;
+        //        // Lookup the content type specified in the spec that match the application/json content type
+        //        $contentType = array_flip($specTypes)[$contentType];
+        //
+        //        $schema = $response->content[$contentType]->schema;
 
         $this->validateResponse(
             $schema,
@@ -93,7 +93,7 @@ class ResponseValidator extends AbstractValidator
     {
         $expectedSchema = $this->prepareData($schema, 'read');
 
-        $validator = new Validator();
+        $validator = new Validator;
         $result = $validator->validate($body, $expectedSchema);
 
         if ($result->isValid() === false) {
